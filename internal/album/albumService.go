@@ -1,19 +1,20 @@
 package album
 
 import (
+	"database/sql"
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 )
 
-var db []Album = []Album{
-	{ID: "1", Title: "Blue Train", Artist: "John Coltrane", Price: 56.99},
-	{ID: "2", Title: "Jeru", Artist: "Gerry Mulligan", Price: 17.99},
-	{ID: "3", Title: "Sarah Vaughan and Clifford Brown", Artist: "Sarah Vaughan", Price: 39.99},
-}
-
 func GetAlbums(c *gin.Context) {
-	c.IndentedJSON(http.StatusOK, db)
+	albs, err := FindAll()
+	if err != nil {
+		c.IndentedJSON(http.StatusInternalServerError, err)
+		return
+	}
+	c.IndentedJSON(http.StatusOK, albs)
 }
 
 func PostAlbums(c *gin.Context) {
@@ -26,22 +27,34 @@ func PostAlbums(c *gin.Context) {
 	}
 
 	// Add the new album to the slice.
-	db = append(db, newAlbum)
+	id, err := Add(newAlbum)
+	if err != nil {
+		c.AbortWithError(500, err)
+		return
+	}
+	newAlbum.ID = id
 	c.IndentedJSON(http.StatusCreated, newAlbum)
 }
 
 // getAlbumByID locates the album whose ID value matches the id
 // parameter sent by the client, then returns that album as a response.
 func GetAlbumByID(c *gin.Context) {
-	id := c.Param("id")
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+
+	if err != nil {
+		c.IndentedJSON(http.StatusBadRequest, gin.H{"message": "invalid id"})
+		return
+	}
 
 	// Loop over the list of albums, looking for
 	// an album whose ID value matches the parameter.
-	for _, a := range db {
-		if a.ID == id {
-			c.IndentedJSON(http.StatusOK, a)
-			return
-		}
+	album, err := FindById(id)
+	if err == sql.ErrNoRows {
+		c.IndentedJSON(http.StatusNotFound, gin.H{"message": "album not found"})
+		return
+	} else if err != nil {
+		c.AbortWithError(500, err)
+		return
 	}
-	c.IndentedJSON(http.StatusNotFound, gin.H{"message": "album not found"})
+	c.IndentedJSON(http.StatusNotFound, album)
 }

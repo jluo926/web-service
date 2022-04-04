@@ -8,6 +8,7 @@ import (
 // albums slice to seed record album data.
 func main() {
 	router := gin.Default()
+	router.SetTrustedProxies(nil)
 	router.GET("/albums", album.GetAlbums)
 	router.POST("/albums", album.PostAlbums)
 	router.GET("/albums/:id", album.GetAlbumByID)
